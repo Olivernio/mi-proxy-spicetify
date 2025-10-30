@@ -10,15 +10,21 @@ export default async function (req) {
   }
 
   const targetUrl = decodeURIComponent(urlParam);
-  
-  // Cabeceras requeridas por Musixmatch
+  const targetHost = new URL(targetUrl).hostname;
+
+  // Copiamos las cabeceras importantes de la petición original
   const headers = new Headers();
   headers.set('User-Agent', req.headers.get('user-agent') || 'Spicetify');
   
-  // ¡Clave! Musixmatch necesita estas cabeceras.
-  // Las añadimos manualmente aquí.
-  headers.set('Authority', 'apic-desktop.musixmatch.com');
-  headers.set('Cookie', 'x-mxm-token-guid=');
+  if (req.headers.has('cookie')) {
+    headers.set('Cookie', req.headers.get('cookie'));
+  }
+  // La cabecera 'Authority' es crucial para Musixmatch
+  if (req.headers.has('authority')) {
+    headers.set('Authority', req.headers.get('authority'));
+  } else {
+    headers.set('Authority', targetHost);
+  }
 
   try {
     // Hacemos la petición a Musixmatch
