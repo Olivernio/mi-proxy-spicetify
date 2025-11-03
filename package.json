@@ -2,11 +2,8 @@
   "name": "lyrics-translate-proxy",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=18"
-  },
   "devDependencies": {
-    "@types/node": "^20.19.24",
-    "@vercel/node": "^3.2.29"
+    "@vercel/node": "^3.0.22",
+    "@types/node": "^20.11.0"
   }
 }

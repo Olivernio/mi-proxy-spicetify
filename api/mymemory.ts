@@ -25,12 +25,14 @@ function guessLang2(s: string) {
   return 'en';
 }
 
+const EMAIL = process.env.MYMEMORY_EMAIL || '';
+const toIso2 = (x:string) => String(x||'').toLowerCase().split('-')[0];
+
 export default {
   async fetch(request: Request): Promise<Response> {
     const headers = new Headers(); cors(headers);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
-    if (request.method !== 'POST')
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
+    if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers });
 
     try {
       const ip = request.headers.get('x-real-ip') || request.headers.get('x-forwarded-for') || 'anon';
@@ -43,15 +45,22 @@ export default {
       if (!q || !Array.isArray(q) || !target)
         return new Response(JSON.stringify({ error: 'Missing q[] or target' }), { status: 400, headers });
 
-      const src = (source && source !== 'auto') ? source : guessLang2(q[0] || '');
+      const dst = toIso2(target);
+      const src = source && source !== 'auto' ? toIso2(source) : guessLang2(q[0] || '');
       const results: string[] = [];
+
       for (const s of q) {
-        const url = `${UPSTREAM}?q=${encodeURIComponent(s)}&langpair=${encodeURIComponent(src)}|${encodeURIComponent(target)}`;
-        const r = await fetch(url);
-        const d = await r.json();
-        const primary = d?.responseData?.translatedText || '';
-        const better = Array.isArray(d?.matches) ? d.matches.find((m: any) => m?.id === 0)?.translation : '';
-        results.push(clean((better || primary || s).trim()));
+        const url = `${UPSTREAM}?q=${encodeURIComponent(s)}&langpair=${encodeURIComponent(src)}|${encodeURIComponent(dst)}${EMAIL ? `&de=${encodeURIComponent(EMAIL)}` : ''}`;
+        try {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error('MM '+r.status);
+          const d = await r.json();
+          const primary = d?.responseData?.translatedText || '';
+          const better = Array.isArray(d?.matches) ? d.matches.find((m:any)=>m?.id===0)?.translation : '';
+          results.push(clean((better || primary || s).trim() || s));
+        } catch {
+          results.push(s);
+        }
       }
       return new Response(JSON.stringify({ translatedText: results }), { status: 200, headers });
     } catch (e: any) {
